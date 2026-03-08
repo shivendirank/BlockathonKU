@@ -15,6 +15,7 @@ export interface FlightRouteInfo {
   from: [number, number]
   to: [number, number]
   label: string
+  initialProgress?: number
 }
 
 interface RotatingEarthProps {
@@ -25,6 +26,7 @@ interface RotatingEarthProps {
   zoomLevel?: number
   highlightedFlight?: number | null
   frozen?: boolean
+  externalFlights?: FlightRouteInfo[] | null
   onFlightClick?: (flightIndex: number) => void
 }
 
@@ -49,6 +51,7 @@ export default function RotatingEarth({
   zoomLevel = 1,
   highlightedFlight = null,
   frozen = false,
+  externalFlights = null,
   onFlightClick,
 }: RotatingEarthProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -60,12 +63,14 @@ export default function RotatingEarth({
   const highlightRef = useRef(highlightedFlight)
   const frozenRef = useRef(frozen)
   const onFlightClickRef = useRef(onFlightClick)
+  const externalFlightsRef = useRef(externalFlights)
   const flightScreenPositions = useRef<{ x: number; y: number; index: number }[]>([])
 
   useEffect(() => { zoomRef.current = zoomLevel }, [zoomLevel])
   useEffect(() => { highlightRef.current = highlightedFlight }, [highlightedFlight])
   useEffect(() => { frozenRef.current = frozen }, [frozen])
   useEffect(() => { onFlightClickRef.current = onFlightClick }, [onFlightClick])
+  useEffect(() => { externalFlightsRef.current = externalFlights }, [externalFlights])
 
   const interpolateGreatCircle = useCallback(
     (from: [number, number], to: [number, number], t: number): [number, number] => {
@@ -159,17 +164,15 @@ export default function RotatingEarth({
     const allDots: { lng: number; lat: number }[] = []
     let landFeatures: any
 
-    // Two speed regimes:
-    // OVERVIEW: fast, lively animation matching the original look
-    // TRACKING: realistic flight-tracker crawl (when a flight is selected)
     const OVERVIEW_GEO_SPEED = 0.0015
     const TRACKING_GEO_SPEED = 0.00003
-    const flights: FlightPath[] = FLIGHT_ROUTES.map((route) => {
+    const routeSource = externalFlightsRef.current || FLIGHT_ROUTES
+    const flights: FlightPath[] = routeSource.map((route) => {
       const dist = d3.geoDistance(route.from, route.to)
       return {
         from: route.from,
         to: route.to,
-        progress: Math.random() * 0.6 + 0.15,
+        progress: route.initialProgress ?? (Math.random() * 0.6 + 0.15),
         speed: OVERVIEW_GEO_SPEED / dist,
         routeDist: dist,
         label: route.label,
@@ -461,7 +464,7 @@ export default function RotatingEarth({
       canvas.removeEventListener("mousedown", handleMouseDown)
       canvas.removeEventListener("wheel", handleWheel)
     }
-  }, [width, height, showFlights, interpolateGreatCircle])
+  }, [width, height, showFlights, externalFlights, interpolateGreatCircle])
 
   if (error) {
     return (

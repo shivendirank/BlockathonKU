@@ -1,18 +1,35 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import RotatingEarth from "@/components/ui/wireframe-dotted-globe"
+import type { FlightRouteInfo } from "@/components/ui/wireframe-dotted-globe"
+import type { LiveFlight } from "@/lib/types"
 
 export default function LandingPage() {
   const router = useRouter()
   const [isZooming, setIsZooming] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [mounted, setMounted] = useState(false)
+  const [flights, setFlights] = useState<LiveFlight[]>([])
 
   useEffect(() => {
     setMounted(true)
+    fetch("/api/flights")
+      .then((r) => r.json())
+      .then((d) => { if (d.flights?.length) setFlights(d.flights) })
+      .catch(() => {})
   }, [])
+
+  const globeFlights: FlightRouteInfo[] | null = useMemo(() => {
+    if (flights.length === 0) return null
+    return flights.map((f) => ({
+      from: f.depCoords,
+      to: f.arrCoords,
+      label: `${f.callsign} (${f.depIata} → ${f.arrIata})`,
+      initialProgress: f.progress,
+    }))
+  }, [flights])
 
   const handleEnter = useCallback(() => {
     if (isZooming) return
@@ -60,6 +77,7 @@ export default function LandingPage() {
           height={window.innerHeight}
           showFlights={true}
           zoomLevel={zoomLevel}
+          externalFlights={globeFlights}
           onFlightClick={handleFlightClick}
         />
       </div>
