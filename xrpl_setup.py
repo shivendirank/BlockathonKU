@@ -1,5 +1,5 @@
 """
-AeroGuard XRPL Wallet Setup
+FlightChain XRPL Wallet Setup
 Run this ONCE to generate your airline's testnet wallet and fund it with test XRP.
 It auto-writes the seed and address into your .env file.
 """
@@ -39,7 +39,7 @@ def update_env_file(key: str, value: str):
 
 def main():
     print("\n" + "="*60)
-    print("🛡️  AeroGuard — XRPL Testnet Wallet Setup")
+    print("🛡️  FlightChain — XRPL Testnet Wallet Setup")
     print("="*60)
 
     load_dotenv()

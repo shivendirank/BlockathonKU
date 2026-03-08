@@ -20,7 +20,7 @@ class NFTokenModify(Transaction):
     """
     NFTokenModify (XLS-46d) — updates the URI field of an existing NFToken.
 
-    This is the transaction that powers AeroGuard's living Digital Twin:
+    This is the transaction that powers FlightChain's living Digital Twin:
     when the Arduino detects a crash, we call NFTokenModify to swap the
     NFT URI from the nominal Pinata CID to the crash evidence CID.
 
@@ -39,7 +39,7 @@ class NFTokenModify(Transaction):
     """
     New URI that points to the updated data/metadata for the NFT.
     Must be hex-encoded. Use xrpl.utils.str_to_hex to convert a plain string.
-    For AeroGuard: "ipfs://<crash_cid>" hex-encoded.
+    For FlightChain: "ipfs://<crash_cid>" hex-encoded.
 
     Maximum length: 512 characters (hex form, so 256 bytes of actual data).
     """

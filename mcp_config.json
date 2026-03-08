@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "aeroguard-mcp": {
+    "FlightChain-mcp": {
       "command": "python",
       "args": ["mcp_server.py"],
       "env": {
@@ -10,7 +10,7 @@
     }
   },
   "config": {
-    "name": "AeroGuard MCP Server",
+    "name": "FlightChain MCP Server",
     "version": "1.0",
     "description": "Emergency response system linking Arduino → Pinata → XRPL → ElevenLabs AI",
     "required_env_vars": [

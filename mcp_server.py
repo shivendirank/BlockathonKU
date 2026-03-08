@@ -1,5 +1,5 @@
 """
-AeroGuard MCP Server
+FlightChain MCP Server
 Allows ElevenLabs AI to read blockchain & Pinata data during emergency calls
 """
 import os
@@ -30,11 +30,11 @@ crash_state = {
 }
 
 # Initialize MCP server
-server = Server("aeroguard-mcp")
+server = Server("FlightChain-mcp")
 pinata = None
 
 
-class AeroGuardMCPServer:
+class FlightChainMCPServer:
     """MCP Tools for ElevenLabs AI integration"""
     
     def __init__(self):
@@ -193,7 +193,7 @@ class AeroGuardMCPServer:
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict) -> ToolResult:
     """Handle tool calls from ElevenLabs"""
-    mcp = AeroGuardMCPServer()
+    mcp = FlightChainMCPServer()
     
     try:
         if name == "get_flight_status":
@@ -288,7 +288,7 @@ async def handle_list_tools() -> list[Tool]:
 async def main():
     """Start the MCP server"""
     print("\n" + "="*60)
-    print("🛡️  AeroGuard MCP Server starting...")
+    print("🛡️  FlightChain MCP Server starting...")
     print("="*60)
     
     # Check env vars

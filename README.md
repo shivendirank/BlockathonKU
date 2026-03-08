@@ -1,11 +1,11 @@
-# AeroGuard Pinata Setup Guide
+# FlightChain Pinata Setup Guide
 
 Everything is ready! Here's your 5-minute setup:
 
 ## 📁 Files Created
 
 - **pinata_gateway.py** — Handles pinning telemetry to IPFS, retrieving crash evidence
-- **aeroguard_mcp_server.py** — MCP server that lets ElevenLabs AI call Pinata tools
+- **FlightChain_mcp_server.py** — MCP server that lets ElevenLabs AI call Pinata tools
 - **mcp_config.json** — Configuration for ElevenLabs integration
 - **requirements.txt** — Python dependencies
 - **.env.example** — Template for your environment variables
@@ -43,9 +43,9 @@ python pinata_gateway.py
 You should see:
 ```
 ✅ Pinata authentication successful!
-✅ Pinned to IPFS: aeroguard_nominal_flight
+✅ Pinned to IPFS: FlightChain_nominal_flight
    CID: Qm...
-✅ Pinned to IPFS: aeroguard_crash_event
+✅ Pinned to IPFS: FlightChain_crash_event
    CID: Qm...
 ✅ All tests passed! Pinata is ready.
 ```
@@ -53,12 +53,12 @@ You should see:
 ### Step 5: Start the MCP Server
 In the same terminal:
 ```bash
-python aeroguard_mcp_server.py
+python FlightChain_mcp_server.py
 ```
 
 You should see:
 ```
-🛡️  AeroGuard MCP Server starting...
+🛡️  FlightChain MCP Server starting...
    Pinata JWT  : SET ✅
 🛠️  Available Tools:
    ✓ get_flight_status
@@ -75,7 +75,7 @@ You should see:
 | File | Purpose | Called By |
 |------|---------|-----------|
 | **pinata_gateway.py** | Core Pinata API wrapper | MCP server, Arduino gateway |
-| **aeroguard_mcp_server.py** | 5 tools for ElevenLabs AI | ElevenLabs voice agent during demo |
+| **FlightChain_mcp_server.py** | 5 tools for ElevenLabs AI | ElevenLabs voice agent during demo |
 | **mcp_config.json** | ElevenLabs integration config | ElevenLabs setup screen |
 
 ---
@@ -163,6 +163,6 @@ Once Pinata is working:
 
 All code is documented. Check the docstrings in each file:
 - `pinata_gateway.py` → `pin_crash_event()` docstring shows the exact crash JSON format
-- `aeroguard_mcp_server.py` → `declare_emergency()` shows the full flow
+- `FlightChain_mcp_server.py` → `declare_emergency()` shows the full flow
 
 Good luck at Blockathon! 🚀
