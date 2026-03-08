@@ -173,7 +173,7 @@ function EmergencyContent() {
     setConversationActive(true)
     setIsAgentSpeaking(true)
     
-    const initialMessage = `MAYDAY MAYDAY MAYDAY — AeroGuard autonomous agent for ${flight.callsign}. ` +
+    const initialMessage = `MAYDAY MAYDAY MAYDAY — FlightChain autonomous agent for ${flight.callsign}. ` +
       `Catastrophic anomaly detected — G-force ${gForce.toFixed(1)}G recorded. ` +
       `Last known position: ${flight.currentPos[1].toFixed(4)}°N, ${flight.currentPos[0].toFixed(4)}°E. ` +
       `Altitude at event: ${flight.altitude.toLocaleString()} feet. ` +
@@ -538,7 +538,7 @@ function EmergencyContent() {
                 <p className="text-[10px] font-mono text-white/10 mt-2 max-w-xs mx-auto leading-relaxed">
                   Shake the Arduino Nano 33 BLE Sense to trigger a catastrophic event.
                   The IMU accelerometer will detect G-force &gt; 3.5G and execute the
-                  AeroGuard protocol automatically.
+                  FlightChain protocol automatically.
                 </p>
               </div>
             </div>
@@ -660,7 +660,7 @@ function EmergencyContent() {
               <div className="space-y-2">
                 <Row label="TOKEN ID" value={nftTokenId} />
                 <Row label="OWNER" value={`${flight.airline.slice(0, 12).toLowerCase().replace(/\s/g, "-")}.xrpl`} />
-                <Row label="DOMAIN" value="airline.permitted.aeroguard" />
+                <Row label="DOMAIN" value="airline.permitted.flightchain" />
                 <div className="pt-2 mt-2 border-t border-white/5">
                   <Row
                     label="STATUS URI"

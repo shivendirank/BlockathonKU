@@ -1,4 +1,4 @@
-# 🛡️ AeroGuard Complete Setup Guide
+# 🛡️ FlightChain Complete Setup Guide
 
 **Current Status:** XRPL wallet generated, dependencies installed, ngrok running
 
@@ -64,7 +64,7 @@ Expected output:
 
 **Verify ngrok:**
 Open: https://unequilaterally-tendrillar-kyra.ngrok-free.app
-You should see the AeroGuard dashboard (not a 502 error).
+You should see the FlightChain dashboard (not a 502 error).
 
 ---
 
@@ -87,10 +87,10 @@ Expected output:
 
 **Copy the Token ID** and run:
 ```powershell
-cd ..\aeroguard-ui
+cd ..\flightchain
 ```
 
-Then edit [.env.local](aeroguard-ui/.env.local):
+Then edit [.env.local](flightchain/.env.local):
 ```env
 XRPL_NFT_TOKEN_ID=000100001A9F7F3E2D8B4C5F...
 NEXT_PUBLIC_XRPL_NFT_TOKEN_ID=000100001A9F7F3E2D8B4C5F...
@@ -106,14 +106,14 @@ NEXT_PUBLIC_XRPL_NFT_TOKEN_ID=000100001A9F7F3E2D8B4C5F...
 
 1. Go to: https://elevenlabs.io/app/settings/api-keys
 2. Click **"Create New API Key"**
-3. Name: `AeroGuard ConversationalAI`
+3. Name: `FlightChain ConversationalAI`
 4. Enable permissions:
    - ✅ **ElevenAgents → Write**
    - ✅ Text to Speech → Read
    - ✅ Text to Speech → Write
 5. Copy the new key (starts with `sk_...`)
 
-Edit [aeroguard-ui/.env.local](aeroguard-ui/.env.local):
+Edit [flightchain/.env.local](flightchain/.env.local):
 ```env
 ELEVENLABS_API_KEY=sk_YOUR_NEW_KEY_HERE
 ```
@@ -140,7 +140,7 @@ ELEVENLABS_API_KEY=sk_YOUR_NEW_KEY_HERE
 
 **System Prompt (verify it's configured):**
 ```
-You are AeroGuard emergency AI. NO introductions. Get straight to data.
+You are FlightChain emergency AI. NO introductions. Get straight to data.
 When asked for status, IMMEDIATELY call get_flight_status tool.
 Report: Flight [callsign]: G-force [value]G. Position [lat]N, [lon]E. 
 Altitude [feet]ft. Temperature [C]C, Pressure [kpa]kPa, Humidity [%]%. 
@@ -206,7 +206,7 @@ Stop-Process -Name node -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 
 # Remove lock file
-Remove-Item "C:\Users\HEET\Downloads\BlockathonKU\aeroguard-ui\.next" -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item "C:\Users\HEET\Downloads\BlockathonKU\flightchain\.next" -Recurse -Force -ErrorAction SilentlyContinue
 
 # Try again
 cd C:\Users\HEET\Downloads\BlockathonKU\aeroguard-ui

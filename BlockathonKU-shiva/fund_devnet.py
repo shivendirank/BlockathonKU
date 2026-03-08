@@ -18,7 +18,7 @@ def main():
         return
     
     print("\n" + "="*60)
-    print("🛡️  AeroGuard — Funding Devnet Wallet")
+    print("🛡️  FlightChain — Funding Devnet Wallet")
     print("="*60)
     
     wallet = Wallet.from_seed(seed)

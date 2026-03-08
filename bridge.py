@@ -28,7 +28,7 @@ except Exception as e:
     exit()
 
 print("="*60)
-print("🛡️  AeroGuard Bridge - Arduino to Cloud Gateway")
+print("🛡️  FlightChain Bridge - Arduino to Cloud Gateway")
 print("="*60)
 print(f"Arduino Port: {COM_PORT}")
 print(f"Vultr MCP:    {BASE_URL}")

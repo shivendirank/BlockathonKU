@@ -4,7 +4,7 @@ from mcp.server.sse import SseServerTransport
 from fastapi import FastAPI, Request
 import uvicorn
 
-mcp_server = Server("AeroGuard_Cloud")
+mcp_server = Server("FlightChain_Cloud")
 app = FastAPI()
 sse = SseServerTransport("/messages")
 

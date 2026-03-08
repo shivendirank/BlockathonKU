@@ -39,7 +39,7 @@ def update_env_file(key: str, value: str):
 
 def main():
     print("\n" + "="*60)
-    print("🛡️  AeroGuard — XRPL Testnet Wallet Setup")
+    print("🛡️  FlightChain — XRPL Testnet Wallet Setup")
     print("="*60)
 
     load_dotenv()

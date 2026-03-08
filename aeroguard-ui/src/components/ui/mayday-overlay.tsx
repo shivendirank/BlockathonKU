@@ -88,7 +88,7 @@ export default function MaydayOverlay({
       setSessionEnded(false)
 
       const lines = [
-        `MAYDAY MAYDAY MAYDAY — AeroGuard autonomous agent for ${flightContext.callsign}`,
+        `MAYDAY MAYDAY MAYDAY — FlightChain autonomous agent for ${flightContext.callsign}`,
         `Catastrophic anomaly detected — G-force ${flightContext.gForce.toFixed(1)}G recorded`,
         `Last known position: ${flightContext.coordinates[1].toFixed(4)}°N, ${flightContext.coordinates[0].toFixed(4)}°E`,
         `Altitude at event: ${flightContext.altitude.toLocaleString()} feet`,
@@ -150,7 +150,7 @@ export default function MaydayOverlay({
           <div className="flex items-center gap-3 px-4 py-2.5 border-b border-red-500/10 bg-red-500/[0.03]">
             <Radio className="w-4 h-4 text-red-400 animate-pulse" />
             <span className="text-[10px] font-mono tracking-[0.2em] text-red-400 font-semibold">
-              AEROGUARD AI MAYDAY — {flightContext?.callsign || "UNKNOWN"}
+              FLIGHTCHAIN AI MAYDAY — {flightContext?.callsign || "UNKNOWN"}
             </span>
             <div className="ml-auto flex items-center gap-2">
               {sessionEnded ? (

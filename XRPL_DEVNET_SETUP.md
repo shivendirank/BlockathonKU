@@ -1,4 +1,4 @@
-# XRPL Devnet Setup Guide for AeroGuard
+# XRPL Devnet Setup Guide for FlightChain
 
 ## 🚀 Quick Start
 
@@ -51,7 +51,7 @@ NEXT_PUBLIC_XRPL_NFT_TOKEN_ID=000100001E962F495F07A990F4ED55D2410B5D63A5C
 ### 4. **Start Dev Server**
 
 ```bash
-cd ../aeroguard-ui
+cd ../flightchain
 npm run dev
 ```
 

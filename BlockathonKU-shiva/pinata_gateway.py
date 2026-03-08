@@ -57,13 +57,13 @@ class PinataGateway:
                 "engines": "RUNNING",
                 "cabin_pressure": "NORMAL"
             },
-            "aircraft_id": "AeroGuard-001",
-            "aeroguard_version": "1.0"
+            "aircraft_id": "FlightChain-001",
+            "flightchain_version": "1.0"
         }
         
         return self._pin_json(
             nominal_data,
-            name="aeroguard_nominal_flight"
+            name="flightchain_nominal_flight"
         )
     
     def pin_crash_event(self, telemetry=None):
@@ -85,17 +85,17 @@ class PinataGateway:
             "status": "CRASH_DETECTED",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "crash_telemetry": telemetry,
-            "aircraft_id": "AeroGuard-001",
+            "aircraft_id": "FlightChain-001",
             "emergency_declared": True,
-            "aeroguard_version": "1.0"
+            "flightchain_version": "1.0"
         }
         
         return self._pin_json(
             crash_data,
-            name="aeroguard_crash_event"
+            name="flightchain_crash_event"
         )
     
-    def _pin_json(self, data, name="aeroguard_data"):
+    def _pin_json(self, data, name="flightchain_data"):
         """
         Internal method to pin JSON to IPFS
         """
@@ -110,7 +110,7 @@ class PinataGateway:
                     "pinataMetadata": {
                         "name": name,
                         "keyvalues": {
-                            "aeroguard": "true",
+                            "flightchain": "true",
                             "status": data.get("status", "unknown")
                         }
                     }
@@ -179,7 +179,7 @@ class PinataGateway:
 
 def main():
     """Self-test for Pinata integration"""
-    print("\n🛡️  AeroGuard Pinata Gateway — Self Test\n")
+    print("\n🛡️  FlightChain Pinata Gateway — Self Test\n")
     
     try:
         gateway = PinataGateway()

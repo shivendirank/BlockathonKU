@@ -55,7 +55,7 @@ else:
 # tfTransferable=8, tfMutable=16 (XLS-46d) — both required for a living Digital Twin
 # Without tfMutable, NFTokenModify returns tecNO_PERMISSION
 NFT_FLAGS      = 8 | 16     # 24 = Transferable + Mutable
-NFT_TAXON      = 1          # AeroGuard aircraft taxon
+NFT_TAXON      = 1          # FlightChain aircraft taxon
 TRANSFER_FEE   = 0          # No royalty — airline owns it forever
 
 # ── RLUSD issuer (testnet placeholder — swap for mainnet address for production)
@@ -90,7 +90,7 @@ class XRPLGateway:
 
     # ── 2. Mint the Dynamic NFT (pre-flight) ──────────────────────────────────
 
-    def mint_aircraft_nft(self, nominal_cid: str, aircraft_id: str = "AeroGuard-001") -> dict:
+    def mint_aircraft_nft(self, nominal_cid: str, aircraft_id: str = "FlightChain-001") -> dict:
         """
         Mint the Dynamic NFT that represents the physical aircraft.
         URI = ipfs://<nominal_cid> (the 'safe' Pinata CID)
@@ -114,7 +114,7 @@ class XRPLGateway:
                 Memo(
                     memo_data=str_to_hex(json.dumps({
                         "aircraft_id": aircraft_id,
-                        "system":      "AeroGuard",
+                        "system":      "FlightChain",
                         "version":     "1.0"
                     }))
                 )
@@ -171,7 +171,7 @@ class XRPLGateway:
                     memo_data=str_to_hex(json.dumps({
                         "event":     "CRASH_DETECTED",
                         "crash_cid": crash_cid,
-                        "system":    "AeroGuard"
+                        "system":    "FlightChain"
                     }))
                 )
             ]
@@ -320,7 +320,7 @@ class XRPLGateway:
 
 def main():
     print("\n" + "="*60)
-    print("AeroGuard XRPL Gateway - Self Test")
+    print("FlightChain XRPL Gateway - Self Test")
     print("="*60 + "\n")
 
     seed = os.getenv("XRPL_WALLET_SEED")

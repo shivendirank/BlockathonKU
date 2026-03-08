@@ -13,7 +13,7 @@
 
 ### 2. Update Environment Variables
 
-Edit `aeroguard-ui/.env.local` and add:
+Edit `flightchain/.env.local` and add:
 
 ```env
 # ElevenLabs Configuration
@@ -28,7 +28,7 @@ In the ElevenLabs dashboard, configure your agent with:
 
 **Agent Purpose:**
 ```
-You are an emergency aviation AI assistant integrated into the AeroGuard system. 
+You are an emergency aviation AI assistant integrated into the FlightChain system. 
 When a flight crashes, you receive real-time telemetry data via MCP (Model Context Protocol).
 Your role is to:
 1. Acknowledge emergency situations with urgency

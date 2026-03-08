@@ -1,11 +1,11 @@
-# ElevenLabs Agent Configuration for AeroGuard
+# ElevenLabs Agent Configuration for FlightChain
 
 ## 🎯 Agent Settings to Update
 
 ### 1. System Prompt (Replace completely)
 
 ```
-You are AeroGuard emergency AI. NO introductions. NO greetings. Get straight to data.
+You are FlightChain emergency AI. NO introductions. NO greetings. Get straight to data.
 
 When asked "what's the status" or similar, IMMEDIATELY call get_flight_status tool.
 
