@@ -1,0 +1,57 @@
+{
+  "mcpServers": {
+    "aeroguard-mcp": {
+      "command": "python",
+      "args": ["mcp_server.py"],
+      "env": {
+        "PINATA_JWT": "PASTE_YOUR_JWT_HERE",
+        "XRPL_WALLET_SEED": "sYourSeedHere"
+      }
+    }
+  },
+  "config": {
+    "name": "AeroGuard MCP Server",
+    "version": "1.0",
+    "description": "Emergency response system linking Arduino → Pinata → XRPL → ElevenLabs AI",
+    "required_env_vars": [
+      "PINATA_JWT"
+    ],
+    "optional_env_vars": [
+      "XRPL_WALLET_SEED"
+    ]
+  },
+  "tools": {
+    "get_flight_status": {
+      "description": "Returns NOMINAL or CRASH status with active CID",
+      "when_called": "AI checks status at any point during emergency"
+    },
+    "get_crash_evidence": {
+      "description": "Fetches crash JSON from IPFS. AI reads CID aloud as proof",
+      "when_called": "Judge asks 'Prove the crash happened'"
+    },
+    "declare_emergency": {
+      "description": "Pins crash telemetry → gets CID → prepares NFTokenModify → flags escrow",
+      "when_called": "Arduino detects G > 3.5 or judge orders test"
+    },
+    "get_escrow_status": {
+      "description": "Reports RLUSD escrow state (LOCKED → RELEASE_PENDING)",
+      "when_called": "Judge asks 'Where's the rescue money?'"
+    },
+    "list_recent_events": {
+      "description": "Full audit trail of all pinned events",
+      "when_called": "Judge asks for complete timeline"
+    }
+  },
+  "integration_notes": {
+    "elevenLabs": {
+      "setup": "Point ElevenLabs agent config to this file",
+      "runtime": "MCP server communicates via stdio",
+      "voice_flow": "Arduino shake → declare_emergency → AI initiates mayday → Judge tests → AI reads proof"
+    },
+    "pinata_xrpl_link": {
+      "explanation": "Pinata holds the crash data (large JSON), XRPL holds the pointer (CID in NFT URI)",
+      "implementation": "declare_emergency pins JSON, returns CID, which gets inserted into NFTokenModify transaction",
+      "cost_efficiency": "Avoids expensive on-chain storage; uses IPFS for data, blockchain for state"
+    }
+  }
+}
