@@ -9,6 +9,7 @@ import { Conversation } from '@elevenlabs/client'
 
 export interface ConversationConfig {
   agentId: string
+  flightContext?: any  // Flight data to pass to agent
   onAgentResponse?: (text: string) => void
   onConnect?: () => void
   onDisconnect?: () => void
@@ -19,47 +20,107 @@ export interface ConversationConfig {
 export class ElevenLabsConversation {
   private conversation: Conversation | null = null
   private config: ConversationConfig
+  private microphoneStream: MediaStream | null = null
+  private audioContext: AudioContext | null = null
+  private silenceNode: AudioWorkletNode | null = null
 
   constructor(config: ConversationConfig) {
     this.config = config
   }
 
+  // Send silent audio to keep connection alive
+  private startSilentAudio() {
+    try {
+      if (!this.microphoneStream) return
+      
+      this.audioContext = new AudioContext()
+      const source = this.audioContext.createMediaStreamSource(this.microphoneStream)
+      
+      // Keep audio context alive by connecting to destination
+      source.connect(this.audioContext.destination)
+      
+      console.log('✅ Silent audio stream connected to keep WebSocket alive')
+    } catch (error) {
+      console.error('❌ Failed to start silent audio:', error)
+    }
+  }
+
+  private stopSilentAudio() {
+    if (this.audioContext) {
+      this.audioContext.close()
+      this.audioContext = null
+    }
+  }
+
   async connect() {
     try {
-      console.log('🔌 Connecting to ElevenLabs...')
+      console.log('🔌 Step 1: Getting connection mode from backend...')
       
-      // Get signed URL from our backend
+      // Get signed URL from our backend with flight context
       const response = await fetch('/api/elevenlabs/connect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          flightContext: this.config.flightContext || {}
+        })
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || `Connection failed: ${response.status}`)
+      const payload = await response.json().catch(() => ({}))
+      if (payload?.mock) {
+        throw new Error(`MOCK_MODE:${payload.message || payload.reason || 'Voice service unavailable'}`)
       }
 
-      const { signed_url } = await response.json()
-      console.log('✓ Got signed URL')
+      if (!response.ok) {
+        throw new Error(payload.error || `Connection failed: ${response.status}`)
+      }
+
+      const signedUrl = payload.signed_url
+
+      console.log('🔌 Step 2: Requesting microphone permission...')
+      try {
+        this.microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        console.log('✓ Microphone permission granted')
+        this.startSilentAudio()
+      } catch (micError: any) {
+        console.error('❌ Microphone permission denied:', micError)
+        throw new Error('Microphone access required. Please allow microphone permission in your browser.')
+      }
+
+      console.log('🔌 Step 3: Starting ElevenLabs conversation...')
 
       // Create conversation instance with official SDK
-      this.conversation = await Conversation.startSession({
-        signedUrl: signed_url,
+      // Pass client config to use our pre-authorized microphone stream
+      const sessionConfig: any = {
+        signedUrl,
+        // Configure client to use microphone we already have permission for
+        clientOptions: {
+          audio: {
+            input: {
+              stream: this.microphoneStream
+            }
+          }
+        },
         onConnect: () => {
-          console.log('✓ Conversation connected')
+          console.log('✅ ElevenLabs WebSocket connected with active audio stream')
           this.config.onConnect?.()
         },
         onDisconnect: () => {
-          console.log('⚠ Conversation disconnected')
+          console.log('⚠️ ElevenLabs WebSocket disconnected')
+          // Clean up audio resources
+          this.stopSilentAudio()
+          if (this.microphoneStream) {
+            this.microphoneStream.getTracks().forEach(track => track.stop())
+            this.microphoneStream = null
+          }
           this.config.onDisconnect?.()
         },
         onError: (error: any) => {
-          console.error('❌ Conversation error:', error)
+          console.error('❌ ElevenLabs error:', error)
           const errorMsg = typeof error === 'string' ? error : error?.message || 'Connection error'
           this.config.onError?.(errorMsg)
         },
         onMessage: (message: any) => {
-          console.log('📨 Agent message:', message)
+          console.log('📨 Message from agent:', message)
           
           // Handle different message types
           if (message?.type === 'agent_response' && message?.text) {
@@ -67,17 +128,28 @@ export class ElevenLabsConversation {
           }
         },
         onModeChange: (mode: any) => {
-          console.log('🔄 Mode changed:', mode?.mode)
-          if (mode?.mode) {
-            this.config.onModeChange?.(mode.mode as 'speaking' | 'listening' | 'idle')
+          const modeValue = mode?.mode || mode
+          console.log('🔄 Mode changed:', modeValue)
+          if (modeValue) {
+            this.config.onModeChange?.(modeValue as 'speaking' | 'listening' | 'idle')
           }
         }
-      })
+      }
 
+      // Start the session with our configuration
+      this.conversation = await Conversation.startSession(sessionConfig)
+
+      console.log('✅ Conversation session started')
       return this.conversation
 
     } catch (error: any) {
       console.error('❌ Connection failed:', error)
+      // Clean up resources if connection failed
+      this.stopSilentAudio()
+      if (this.microphoneStream) {
+        this.microphoneStream.getTracks().forEach(track => track.stop())
+        this.microphoneStream = null
+      }
       this.config.onError?.(error?.message || 'Failed to connect')
       throw error
     }
@@ -89,15 +161,11 @@ export class ElevenLabsConversation {
     }
 
     console.log('📤 Sending text:', text)
-    // Try common method names from SDK
+    // SDK v0.15.0 uses sendText method
     if (typeof (this.conversation as any).sendText === 'function') {
       await (this.conversation as any).sendText(text)
-    } else if (typeof (this.conversation as any).sendTextInput === 'function') {
-      await (this.conversation as any).sendTextInput({ text })
-    } else if (typeof (this.conversation as any).send === 'function') {
-      await (this.conversation as any).send({ type: 'text', text })
     } else {
-      console.warn('⚠ No send method found on conversation')
+      console.warn('⚠ sendText method not found on conversation object')
     }
   }
 
@@ -107,48 +175,51 @@ export class ElevenLabsConversation {
     }
 
     try {
-      console.log('🎤 Starting microphone...')
-      // Try common method names
+      console.log('🎤 Starting microphone input...')
+      
+      // The SDK should already be using the microphone from getUserMedia
+      // But we can explicitly tell it to start recording if needed
       if (typeof (this.conversation as any).startRecording === 'function') {
         await (this.conversation as any).startRecording()
-      } else if (typeof (this.conversation as any).startAudioInput === 'function') {
-        await (this.conversation as any).startAudioInput()
-      } else if (typeof (this.conversation as any).setAudioEnabled === 'function') {
-        await (this.conversation as any).setAudioEnabled(true)
-      } else {
-        console.warn('⚠ No microphone start method found')
+        console.log('✓ Recording started')
       }
-      console.log('✓ Microphone active')
+      
       return () => this.stopMicrophone()
     } catch (error: any) {
-      console.error('❌ Microphone error:', error)
-      throw new Error('Microphone access denied. Check browser permissions.')
+      console.error('❌ Microphone start error:', error)
+      throw error
     }
   }
 
   async stopMicrophone() {
     if (this.conversation) {
       console.log('🔇 Stopping microphone...')
-      // Try common method names
       if (typeof (this.conversation as any).stopRecording === 'function') {
         await (this.conversation as any).stopRecording()
-      } else if (typeof (this.conversation as any).stopAudioInput === 'function') {
-        await (this.conversation as any).stopAudioInput()
-      } else if (typeof (this.conversation as any).setAudioEnabled === 'function') {
-        await (this.conversation as any).setAudioEnabled(false)
       }
     }
   }
 
   async disconnect() {
+    console.log('🔌 Disconnecting conversation...')
+    
+    // Stop silent audio
+    this.stopSilentAudio()
+    
+    // Stop microphone stream
+    if (this.microphoneStream) {
+      this.microphoneStream.getTracks().forEach(track => track.stop())
+      this.microphoneStream = null
+      console.log('✓ Microphone stream stopped')
+    }
+    
+    // End ElevenLabs session
     if (this.conversation) {
-      console.log('🔌 Disconnecting...')
       if (typeof (this.conversation as any).endSession === 'function') {
         await (this.conversation as any).endSession()
-      } else if (typeof (this.conversation as any).close === 'function') {
-        await (this.conversation as any).close()
       }
       this.conversation = null
+      console.log('✓ Session ended')
     }
   }
 }

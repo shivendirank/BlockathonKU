@@ -5,18 +5,31 @@ const ELEVENLABS_AGENT_ID = process.env.ELEVENLABS_AGENT_ID
 
 /**
  * Get WebSocket signed URL for ElevenLabs Conversational AI
- * The agent has access to get_flight_status tool via MCP server
+ * Agent configuration is done on ElevenLabs dashboard
+ * System prompt with flight context should be configured there
  */
-export async function POST() {
+export async function POST(request: Request) {
   if (!ELEVENLABS_API_KEY || !ELEVENLABS_AGENT_ID) {
-    return NextResponse.json(
-      { error: "ElevenLabs credentials not configured in .env.local" },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      mock: true,
+      reason: "ElevenLabs credentials missing",
+      message: "Running in mock voice mode. Set ELEVENLABS_API_KEY and ELEVENLABS_AGENT_ID to enable live voice."
+    })
   }
 
   try {
-    // Get signed WebSocket URL for conversational AI
+    // Get flight context from request body for logging
+    const body = await request.json().catch(() => ({}))
+    const flightContext = body.flightContext || {}
+    
+    console.log('📊 Flight Context for Voice Agent:')
+    console.log('  - Callsign:', flightContext.callsign)
+    console.log('  - G-Force:', flightContext.gforce)
+    console.log('  - Position:', flightContext.latitude, flightContext.longitude)
+    console.log('  - IPFS CID:', flightContext.ipfs_cid)
+    console.log('  - XRPL Status:', flightContext.xrpl_status)
+
+    // Get signed WebSocket URL from ElevenLabs
     const response = await fetch(
       `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${ELEVENLABS_AGENT_ID}`,
       {
@@ -33,32 +46,36 @@ export async function POST() {
       
       if (response.status === 401) {
         return NextResponse.json(
-          { 
-            error: "API key missing 'ElevenAgents Write' permission. Go to https://elevenlabs.io/app/settings/api-keys and create new key with ElevenAgents access enabled." 
-          },
-          { status: 401 }
+          {
+            mock: true,
+            reason: "ElevenLabs API key missing required permission",
+            message: "Running in mock voice mode. Create an ElevenLabs key with ElevenAgents Write permission to enable live voice."
+          }
         )
       }
       
-      return NextResponse.json(
-        { error: `ElevenLabs API error: ${response.status}` },
-        { status: response.status }
-      )
+      return NextResponse.json({
+        mock: true,
+        reason: `ElevenLabs API error: ${response.status}`,
+        message: "Running in mock voice mode due to upstream ElevenLabs API failure."
+      })
     }
 
     const data = await response.json()
-    console.log('✓ Got signed WebSocket URL for agent:', ELEVENLABS_AGENT_ID)
+    console.log('✅ Got signed WebSocket URL for agent:', ELEVENLABS_AGENT_ID)
     
+    // Return signed URL - configuration is set on ElevenLabs dashboard
     return NextResponse.json({ 
       signed_url: data.signed_url,
-      agent_id: ELEVENLABS_AGENT_ID 
+      agent_id: ELEVENLABS_AGENT_ID
     })
     
   } catch (error: any) {
     console.error('Connection error:', error)
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      mock: true,
+      reason: error.message,
+      message: "Running in mock voice mode due to connection error."
+    })
   }
 }

@@ -3,6 +3,7 @@ import { getAirportCoords, estimateFlightProgress } from "@/lib/airports"
 import type { LiveFlight } from "@/lib/types"
 
 const API_KEY = process.env.AVIATIONSTACK_API_KEY
+const FLIGHT_DATA_MODE = (process.env.FLIGHT_DATA_MODE || "demo").toLowerCase()
 
 type Region = "north_america" | "south_america" | "europe" | "middle_east" | "asia" | "oceania" | "africa"
 
@@ -122,18 +123,28 @@ function processApiFlight(f: Record<string, any>): LiveFlight | null {
   }
 }
 
+function buildDemoFlights(): LiveFlight[] {
+  const demoFlights: LiveFlight[] = []
+  const regionOrder: Region[] = [
+    "north_america", "europe", "asia", "middle_east",
+    "south_america", "oceania", "africa",
+  ]
+  for (const region of regionOrder) {
+    demoFlights.push(...SUPPLEMENTAL[region])
+  }
+  return demoFlights
+}
+
 export async function GET() {
-  // If no API key, use only supplemental flights for demo
-  if (!API_KEY) {
-    const demoFlights: LiveFlight[] = []
-    const regionOrder: Region[] = [
-      "north_america", "europe", "asia", "middle_east",
-      "south_america", "oceania", "africa",
-    ]
-    for (const region of regionOrder) {
-      demoFlights.push(...SUPPLEMENTAL[region])
-    }
-    return NextResponse.json({ flights: demoFlights, fetchedAt: new Date().toISOString() })
+  const useLiveData = FLIGHT_DATA_MODE === "live" && !!API_KEY
+
+  // Default mode is demo to keep setup keyless for new users.
+  if (!useLiveData) {
+    return NextResponse.json({
+      flights: buildDemoFlights(),
+      fetchedAt: new Date().toISOString(),
+      mode: "demo",
+    })
   }
 
   try {
@@ -143,12 +154,22 @@ export async function GET() {
     )
 
     if (!res.ok) {
-      return NextResponse.json({ error: "Aviationstack API error" }, { status: 502 })
+      return NextResponse.json({
+        flights: buildDemoFlights(),
+        fetchedAt: new Date().toISOString(),
+        mode: "demo",
+        reason: `Live API unavailable (${res.status})`,
+      })
     }
 
     const json = await res.json()
     if (json.error) {
-      return NextResponse.json({ error: json.error.message }, { status: 502 })
+      return NextResponse.json({
+        flights: buildDemoFlights(),
+        fetchedAt: new Date().toISOString(),
+        mode: "demo",
+        reason: json.error.message,
+      })
     }
 
     // Bucket every valid API flight by region
@@ -234,8 +255,13 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ flights: picked, fetchedAt: new Date().toISOString() })
+    return NextResponse.json({ flights: picked, fetchedAt: new Date().toISOString(), mode: "live" })
   } catch {
-    return NextResponse.json({ error: "Failed to fetch flight data" }, { status: 500 })
+    return NextResponse.json({
+      flights: buildDemoFlights(),
+      fetchedAt: new Date().toISOString(),
+      mode: "demo",
+      reason: "Live fetch failed",
+    })
   }
 }

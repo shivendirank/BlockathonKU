@@ -78,6 +78,7 @@ function EmergencyContent() {
   const [isAgentSpeaking, setIsAgentSpeaking] = useState(false)
   const [conversationActive, setConversationActive] = useState(false)
   const [isMicActive, setIsMicActive] = useState(false)
+  const [voiceMockMode, setVoiceMockMode] = useState(false)
   const conversationRef = useRef<ElevenLabsConversation | null>(null)
   const stopMicRef = useRef<(() => void) | null>(null)
 
@@ -186,7 +187,13 @@ function EmergencyContent() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        flight: { callsign: flight.callsign, aircraft: flight.aircraft },
+        flight: { 
+          callsign: flight.callsign, 
+          aircraft: flight.aircraft,
+          airline: flight.airline,
+          depIata: flight.depIata,
+          arrIata: flight.arrIata
+        },
         latitude: flight.currentPos[1],
         longitude: flight.currentPos[0],
         altitude: flight.altitude,
@@ -196,7 +203,8 @@ function EmergencyContent() {
         humidity: 45.2,
         ipfs_cid: crashCid,
         xrpl_tx: txHash,
-        escrow_released: true
+        escrow_released: true,
+        event_time: new Date().toISOString()
       })
     }).catch(() => {})
     
@@ -204,129 +212,200 @@ function EmergencyContent() {
     
   }, [maydayActive, flight, gForce])
   
-  // Initialize WebSocket conversation when mayday activates
+  // Initialize real ElevenLabs WebSocket conversation when mayday activates
   useEffect(() => {
-    if (!maydayActive || conversationRef.current) return
+    if (!maydayActive || conversationRef.current || !flight) return
     
-    const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID
-    if (!agentId) {
-      console.error('ELEVENLABS_AGENT_ID not configured')
-      setTranscriptLines(prev => [...prev, `[SYSTEM ERROR]: ElevenLabs Agent ID not configured in .env.local`])
-      return
+    console.log('🎙️ Initializing ElevenLabs voice agent...')
+    
+    // Create flight context to pass to agent
+    const flightContext = {
+      callsign: flight.callsign,
+      aircraft: flight.aircraft,
+      airline: flight.airline,
+      route: `${flight.depIata} to ${flight.arrIata}`,
+      latitude: flight.currentPos[1],
+      longitude: flight.currentPos[0],
+      altitude: flight.altitude,
+      gforce: gForce,
+      ipfs_cid: crashCid,
+      xrpl_tx: txHash,
+      xrpl_status: nftUpdated ? 'updated' : 'pending',
+      escrow_status: escrowReleased ? 'released' : 'pending'
     }
-
-    console.log('Initializing ElevenLabs conversational AI...')
     
+    // Initialize conversation with callbacks
     const conversation = new ElevenLabsConversation({
-      agentId,
+      agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || '',
+      flightContext,
       onConnect: () => {
-        console.log('✓ Agent connected and ready')
+        console.log('✅ Voice agent connected')
         setConversationActive(true)
-        setTranscriptLines(prev => [...prev, `[SYSTEM]: Voice agent connected. Microphone available. Agent has access to MCP server for flight data.`])
+        setTranscriptLines(prev => [...prev, 
+          `[SYSTEM]: ✅ Voice agent connected. Microphone active. You can now speak or type your questions.`
+        ])
+      },
+      onDisconnect: () => {
+        console.log('⚠️ Voice agent disconnected')
+        setConversationActive(false)
+        setTranscriptLines(prev => [...prev, 
+          `[SYSTEM]: ⚠️ Voice agent disconnected. Attempting to reconnect...`
+        ])
+      },
+      onError: (error) => {
+        console.error('❌ Voice agent error:', error)
+        if (error.includes('MOCK_MODE:')) {
+          setVoiceMockMode(true)
+          setConversationActive(true)
+          setTranscriptLines(prev => [...prev,
+            `[SYSTEM]: 🎭 Voice running in mock mode (no API keys required).`,
+            `[SYSTEM]: ✅ You can still type questions and get full simulated emergency responses.`
+          ])
+          return
+        }
+        setTranscriptLines(prev => [...prev, 
+          `[SYSTEM]: ❌ Error: ${error}`
+        ])
+        // If API key error, show helpful message
+        if (error.includes('permission') || error.includes('401')) {
+          setTranscriptLines(prev => [...prev, 
+            `[SYSTEM]: 💡 Create API key with "ElevenAgents Write" at https://elevenlabs.io/app/settings/api-keys`
+          ])
+        }
       },
       onAgentResponse: (text) => {
-        console.log('📨 Agent response:', text)
+        console.log('📢 Agent response:', text)
         setTranscriptLines(prev => [...prev, `[AGENT]: ${text}`])
         setIsAgentSpeaking(false)
       },
       onModeChange: (mode) => {
-        console.log('🔄 Mode:', mode)
-        if (mode === 'speaking') {
-          setIsAgentSpeaking(true)
-        } else if (mode === 'listening') {
-          setIsAgentSpeaking(false)
-        } else {
-          setIsAgentSpeaking(false)
-        }
-      },
-      onDisconnect: () => {
-        setConversationActive(false)
-        setIsMicActive(false)
-        setIsAgentSpeaking(false)
-        console.log('Agent disconnected')
-        setTranscriptLines(prev => [...prev, `[SYSTEM]: Agent disconnected`])
-      },
-      onError: (error) => {
-        console.error('❌ Conversation error:', error)
-        setTranscriptLines(prev => [...prev, `[SYSTEM ERROR]: ${error}`])
-        setConversationActive(false)
-        setIsMicActive(false)
-        
-        if (error.includes('ElevenAgents Write') || error.includes('missing_permissions')) {
-          setTranscriptLines(prev => [...prev, `[SYSTEM]: Go to https://elevenlabs.io/app/settings/api-keys → Create new key → Enable "ElevenAgents Write"`])
-        }
+        console.log('🔄 Agent mode:', mode)
+        setIsAgentSpeaking(mode === 'speaking')
+        setIsMicActive(mode === 'listening')
       }
     })
-
+    
     conversationRef.current = conversation
     
-    // Connect asynchronously
-    conversation.connect().catch((err) => {
-      console.error('Failed to connect:', err)
-      setTranscriptLines(prev => [...prev, `[SYSTEM ERROR]: Failed to initialize agent. ${err.message}`])
-    })
+    // Connect to ElevenLabs
+    conversation.connect()
+      .then(() => {
+        console.log('✅ Successfully connected to voice agent')
+        
+        // Wait a moment then send initial prompt to trigger agent's mayday message
+        setTimeout(() => {
+          if (conversationRef.current) {
+            const initialPrompt = `URGENT: Catastrophic crash detected for flight ${flight.callsign}. ` +
+              `Begin emergency broadcast. State "MAYDAY MAYDAY MAYDAY" followed by flight information, ` +
+              `crash coordinates, sensor readings, and blockchain verification status.`
+            
+            conversationRef.current.sendText(initialPrompt)
+              .then(() => {
+                console.log('✅ Initial mayday prompt sent to agent')
+                setTranscriptLines(prev => [...prev, 
+                  `[SYSTEM]: 🚨 Initiating emergency broadcast protocol...`
+                ])
+              })
+              .catch((error) => {
+                console.error('❌ Failed to send initial prompt:', error)
+              })
+          }
+        }, 2000) // Wait 2 seconds after connection before triggering
+      })
+      .catch((error) => {
+        console.error('❌ Failed to connect:', error)
+        if (String(error?.message || error).includes('MOCK_MODE:')) {
+          setVoiceMockMode(true)
+          setConversationActive(true)
+          setTranscriptLines(prev => [...prev,
+            `[SYSTEM]: 🎭 Voice running in mock mode (no API keys required).`,
+            `[SYSTEM]: 💡 Type: "what's the status?" to continue the demo.`
+          ])
+          return
+        }
+        setTranscriptLines(prev => [...prev, 
+          `[SYSTEM]: ❌ Failed to connect to voice agent. Check console for details.`,
+          `[SYSTEM]: 💡 Make sure ELEVENLABS_API_KEY and ELEVENLABS_AGENT_ID are configured in Vercel environment variables.`
+        ])
+      })
 
     return () => {
+      console.log('🔌 Cleaning up voice agent connection')
       if (conversationRef.current) {
         conversationRef.current.disconnect()
         conversationRef.current = null
       }
     }
-  }, [maydayActive])
+  }, [maydayActive, flight, gForce, crashCid, nftUpdated, txHash, escrowReleased])
   
-  // Send text message to ElevenLabs
+  // Send text message to ElevenLabs agent
   const handleSendMessage = useCallback(async () => {
-    if (!userMessage.trim() || isAgentSpeaking || !conversationRef.current) return
+    if (!userMessage.trim() || isAgentSpeaking) return
     
-    setTranscriptLines(prev => [...prev, `[RADIO TOWER]: ${userMessage}`])
-    const currentMessage = userMessage
+    setTranscriptLines(prev => [...prev, `[YOU]: ${userMessage}`])
+    const message = userMessage
+    const lowered = userMessage.toLowerCase()
     setUserMessage("")
     setIsAgentSpeaking(true)
+
+    if (voiceMockMode || !conversationRef.current) {
+      setTimeout(() => {
+        let response = ""
+        if (lowered.includes("status") || lowered.includes("report")) {
+          response = `Flight ${flight?.callsign || 'Unknown'} experienced catastrophic failure at ${gForce.toFixed(1)} G. Last position ${flight?.currentPos[1].toFixed(4)} N, ${flight?.currentPos[0].toFixed(4)} E at ${flight?.altitude.toLocaleString()} feet. IPFS evidence CID: ${crashCid}. XRPL tx: ${txHash}. Escrow status: ${escrowReleased ? 'released' : 'pending'}.`
+        } else if (lowered.includes("ipfs") || lowered.includes("cid")) {
+          response = `Crash evidence is anchored to IPFS with CID ${crashCid}. This CID is content-addressed and tamper-evident.`
+        } else if (lowered.includes("xrp") || lowered.includes("xrpl") || lowered.includes("nft")) {
+          response = `The aircraft Digital Twin NFT was updated on XRPL using NFTokenModify. Transaction reference: ${txHash}.`
+        } else if (lowered.includes("sensor") || lowered.includes("g-force") || lowered.includes("gforce")) {
+          response = `Sensor snapshot: G-force ${gForce.toFixed(1)} G, temperature 28.4 C, pressure 85.3 kPa, humidity 45.2 percent.`
+        } else {
+          response = "Mock agent active. Ask about status, sensors, IPFS CID, XRPL transaction, or rescue escrow."
+        }
+        setTranscriptLines(prev => [...prev, `[AGENT]: ${response}`])
+        setIsAgentSpeaking(false)
+      }, 700)
+      return
+    }
     
     try {
-      await conversationRef.current.sendText(currentMessage)
-      console.log('✓ Message sent')
-    } catch (error: any) {
-      console.error('❌ Send error:', error)
-      setTranscriptLines(prev => [...prev, `[SYSTEM ERROR]: ${error.message}`])
+      await conversationRef.current.sendText(message)
+      console.log('✅ Message sent to agent')
+    } catch (error) {
+      console.error('❌ Failed to send message:', error)
+      setTranscriptLines(prev => [...prev, `[SYSTEM]: ❌ Failed to send message`])
       setIsAgentSpeaking(false)
     }
-  }, [userMessage, isAgentSpeaking])
+  }, [userMessage, isAgentSpeaking, voiceMockMode, flight, gForce, crashCid, txHash, escrowReleased])
 
-  // Toggle microphone for speech input
+  // Toggle microphone on/off
   const handleToggleMicrophone = useCallback(async () => {
-    if (!conversationRef.current) {
-      setTranscriptLines(prev => [...prev, `[SYSTEM]: Agent not connected yet. Wait for "Voice agent connected" message.`])
+    if (voiceMockMode) {
+      setTranscriptLines(prev => [...prev, `[SYSTEM]: 🎭 Mock mode active. Use text input below for voice-agent simulation.`])
       return
     }
 
-    if (isMicActive) {
-      // Stop microphone
-      try {
-        if (stopMicRef.current) {
-          stopMicRef.current()
-          stopMicRef.current = null
-        } else {
-          await conversationRef.current.stopMicrophone()
-        }
-        setIsMicActive(false)
-        setTranscriptLines(prev => [...prev, `[SYSTEM]: Microphone stopped`])
-      } catch (error: any) {
-        console.error('❌ Stop mic error:', error)
-      }
-    } else {
-      // Start microphone
-      try {
-        const stopFn = await conversationRef.current.startMicrophone()
-        stopMicRef.current = stopFn
-        setIsMicActive(true)
-        setTranscriptLines(prev => [...prev, `[SYSTEM]: 🎤 Microphone active - speak now. Agent will respond with voice.`])
-      } catch (error: any) {
-        console.error('❌ Microphone error:', error)
-        setTranscriptLines(prev => [...prev, `[SYSTEM ERROR]: ${error.message}`])
-      }
+    if (!conversationRef.current) {
+      setTranscriptLines(prev => [...prev, `[SYSTEM]: ⚠️ Voice agent not connected`])
+      return
     }
-  }, [isMicActive])
+
+    try {
+      if (isMicActive) {
+        await conversationRef.current.stopMicrophone()
+        setIsMicActive(false)
+        setTranscriptLines(prev => [...prev, `[SYSTEM]: 🔇 Microphone disabled`])
+      } else {
+        const stopMic = await conversationRef.current.startMicrophone()
+        stopMicRef.current = stopMic
+        setIsMicActive(true)
+        setTranscriptLines(prev => [...prev, `[SYSTEM]: 🎤 Microphone enabled - speak now`])
+      }
+    } catch (error) {
+      console.error('❌ Microphone toggle error:', error)
+      setTranscriptLines(prev => [...prev, `[SYSTEM]: ❌ Microphone error - check browser permissions`])
+    }
+  }, [isMicActive, voiceMockMode])
   
   // Auto-scroll transcript
   useEffect(() => {
@@ -861,6 +940,50 @@ function EmergencyContent() {
                   )}
                   <div ref={transcriptEndRef} />
                 </div>
+                
+                {/* Quick Action Buttons */}
+                {conversationActive && !maydayEnded && (
+                  <div className="border-t border-red-500/10 px-2 pt-2 pb-1 bg-black/20">
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      <button
+                        onClick={() => setUserMessage("What's the current status?")}
+                        className="px-2 py-0.5 text-[9px] font-mono bg-blue-500/10 border border-blue-500/20 rounded text-blue-400 hover:bg-blue-500/20 transition-all"
+                      >
+                        📊 Status
+                      </button>
+                      <button
+                        onClick={() => setUserMessage("Tell me about the sensors")}
+                        className="px-2 py-0.5 text-[9px] font-mono bg-purple-500/10 border border-purple-500/20 rounded text-purple-400 hover:bg-purple-500/20 transition-all"
+                      >
+                        🔧 Sensors
+                      </button>
+                      <button
+                        onClick={() => setUserMessage("Show me the IPFS proof")}
+                        className="px-2 py-0.5 text-[9px] font-mono bg-green-500/10 border border-green-500/20 rounded text-green-400 hover:bg-green-500/20 transition-all"
+                      >
+                        🗄️ IPFS
+                      </button>
+                      <button
+                        onClick={() => setUserMessage("Verify blockchain transaction")}
+                        className="px-2 py-0.5 text-[9px] font-mono bg-yellow-500/10 border border-yellow-500/20 rounded text-yellow-400 hover:bg-yellow-500/20 transition-all"
+                      >
+                        ⛓️ Blockchain
+                      </button>
+                      <button
+                        onClick={() => setUserMessage("What's the escrow status?")}
+                        className="px-2 py-0.5 text-[9px] font-mono bg-orange-500/10 border border-orange-500/20 rounded text-orange-400 hover:bg-orange-500/20 transition-all"
+                      >
+                        💰 Escrow
+                      </button>
+                      <button
+                        onClick={() => setUserMessage("Coordinate rescue operations")}
+                        className="px-2 py-0.5 text-[9px] font-mono bg-red-500/10 border border-red-500/20 rounded text-red-400 hover:bg-red-500/20 transition-all"
+                      >
+                        🚁 Rescue
+                      </button>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Radio Tower Input */}
                 {conversationActive && !maydayEnded && (

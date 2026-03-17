@@ -3,9 +3,9 @@ import requests
 import time
 
 # 🛠️ CONFIG
-BASE_URL = "http://45.76.31.34:8000"
+BASE_URL = "http://45.76.31.34:8000"  # Optional - Vultr MCP server
 COM_PORT = "COM6"
-FRONTEND_URL = "http://localhost:3000"
+FRONTEND_URL = "https://aeroguard-ui.vercel.app"  # Your deployed Vercel app
 
 has_crashed = False
 last_sync_time = 0
@@ -77,23 +77,34 @@ while True:
                 # Update telemetry with crash data
                 try:
                     requests.post(f"{BASE_URL}/update_telemetry", json=crash_telemetry, timeout=5)
-                    print(f"\n✅ [1/3] Vultr MCP telemetry updated")
+                    print(f"\n✅ [1/4] Vultr MCP telemetry updated")
                 except Exception as e:
-                    print(f"\n⚠️  [1/3] Vultr telemetry error: {e}")
+                    print(f"\n⚠️  [1/4] Vultr unavailable (optional) - continuing...")
                 
                 # Notify Vultr MCP server of crash status
                 try:
                     requests.post(f"{BASE_URL}/trigger_event", json={"status": "CRASH"}, timeout=5)
-                    print(f"✅ [2/3] Vultr crash event triggered")
+                    print(f"✅ [2/4] Vultr crash event triggered")
                 except Exception as e:
-                    print(f"⚠️  [2/3] Vultr event error: {e}")
+                    print(f"⚠️  [2/4] Vultr unavailable (optional) - continuing...")
                 
-                # Notify Next.js frontend
+                # Notify Vercel frontend about crash
                 try:
-                    requests.post(f"{FRONTEND_URL}/api/arduino/trigger", json={"gForce": float(crash_telemetry['g'])}, timeout=2)
-                    print(f"✅ [3/3] Frontend emergency cascade initiated")
+                    response = requests.post(f"{FRONTEND_URL}/api/arduino/trigger", json={"gForce": float(crash_telemetry['g'])}, timeout=10)
+                    if response.status_code == 200:
+                        print(f"✅ [3/4] Frontend emergency cascade initiated")
+                    else:
+                        print(f"⚠️  [3/4] Frontend returned status {response.status_code}")
                 except Exception as e:
-                    print(f"⚠️  [3/3] Frontend error: {e}")
+                    print(f"❌ [3/4] Frontend error: {e}")
+                    print(f"   Check URL: {FRONTEND_URL}")
+                
+                # Update Vercel MCP endpoint
+                try:
+                    requests.post(f"{FRONTEND_URL}/api/mcp/flight-status", json=crash_telemetry, timeout=5)
+                    print(f"✅ [4/4] Vercel MCP endpoint updated")
+                except:
+                    print(f"⚠️  [4/4] MCP endpoint update failed (optional)")
                 
                 print("\n" + "="*60)
                 print("✅ Emergency protocols activated!")
@@ -114,17 +125,28 @@ while True:
                     last_sensor_data["hum"] = parts[4]
                     last_sensor_data["gforce"] = parts[6]
                     
-                    # Sync with Vultr at regular intervals
+                    # Sync with Vultr and Vercel at regular intervals
                     if not has_crashed:
                         now = time.time()
                         if now - last_sync_time > sync_interval:
                             payload = {"temp": parts[2], "hum": parts[4], "g": parts[6]}
+                            
+                            # Sync to Vultr (optional)
                             try:
                                 requests.post(f"{BASE_URL}/update_telemetry", json=payload, timeout=2)
+                            except:
+                                pass  # Silent fail - Vultr is optional
+                            
+                            # Sync to Vercel Arduino status endpoint (important for UI)
+                            try:
+                                requests.post(f"{FRONTEND_URL}/api/arduino/status", 
+                                            json={"g": parts[6], "temp": parts[2], "hum": parts[4]}, 
+                                            timeout=2)
                                 print(f"   💚 Sync → Temp: {parts[2]}°C, Humidity: {parts[4]}%, G-force: {parts[6]}G")
-                                last_sync_time = now
                             except:
                                 pass  # Silent fail for routine updates
+                            
+                            last_sync_time = now
             
             # ── OTHER EVENTS ────────────────────────────────────────────────────
             elif "EVENT:TURBULENCE" in line and not has_crashed:
